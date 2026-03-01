@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Comprimir PDF - Eu Amo PDF{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h1 class="text-center mb-4">Comprimir PDF</h1>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="compressForm">
+                    <div class="mb-3">
+                        <label for="pdfFile" class="form-label">Selecione o arquivo PDF</label>
+                        <input type="file" class="form-control" id="pdfFile" accept=".pdf" required>
+                        <div class="form-text">Selecione um arquivo PDF para compressão</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="compressionLevel" class="form-label">Nível de compressão</label>
+                        <select class="form-select" id="compressionLevel">
+                            <option value="low">Baixa (melhor qualidade)</option>
+                            <option value="medium" selected>Média (recomendado)</option>
+                            <option value="high">Alta (menor tamanho)</option>
+                        </select>
+                    </div>
+
+                    <div id="fileInfo" class="alert alert-info" style="display: none;">
+                        <strong>Arquivo selecionado:</strong> <span id="fileName"></span><br>
+                        <strong>Tamanho:</strong> <span id="fileSize"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Comprimir PDF</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="result" class="mt-4" style="display: none;">
+            <div class="alert alert-success">
+                <h5>✅ PDF comprimido com sucesso!</h5>
+                <p>Redução de <span id="reduction"></span></p>
+                <a id="downloadLink" href="#" class="btn btn-success">Baixar PDF</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pdfFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileInfo').style.display = 'block';
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatBytes(file.size);
+    }
+});
+
+document.getElementById('compressForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const file = document.getElementById('pdfFile').files[0];
+    if (!file) {
+        alert('Selecione um arquivo PDF');
+        return;
+    }
+
+    const originalSize = file.size;
+    const compressionLevel = document.getElementById('compressionLevel').value;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('level', compressionLevel);
+
+    try {
+        const response = await fetch('/api/compress', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const compressedSize = blob.size;
+            const reduction = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'comprimido.pdf';
+            a.click();
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('reduction').textContent = reduction + '%';
+            document.getElementById('downloadLink').onclick = function() {
+                a.click();
+            };
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + error.error);
+        }
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
+});
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+</script>
+{% endblock %}
