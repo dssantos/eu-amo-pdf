@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Eu Amo PDF - Ferramentas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h1 class="text-center mb-4">Ferramentas para PDF</h1>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">📋 Mesclar PDFs</h5>
+                        <p class="card-text">Junte vários PDFs em um único arquivo</p>
+                        <a href="{{ url_for('main.merge') }}" class="btn btn-primary">Usar</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">🗜️ Comprimir PDF</h5>
+                        <p class="card-text">Reduza o tamanho do seu PDF</p>
+                        <button class="btn btn-secondary" disabled>Em breve</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">🔄 DOC para PDF</h5>
+                        <p class="card-text">Converta documentos DOC para PDF</p>
+                        <button class="btn btn-secondary" disabled>Em breve</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
