@@ -19,6 +19,12 @@ def merge():
     return render_template("merge.html")
 
 
+@main_bp.route("/compress")
+def compress():
+    """Página para comprimir PDFs."""
+    return render_template("compress.html")
+
+
 def allowed_file(filename):
     """Verifica se o arquivo tem uma extensão permitida."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() == "pdf"
@@ -75,3 +81,51 @@ def api_merge():
 
     except Exception as e:
         return jsonify({"error": f"Erro ao mesclar PDFs: {str(e)}"}), 500
+
+
+@main_bp.route("/api/compress", methods=["POST"])
+def api_compress():
+    """API para comprimir PDF."""
+    # Verificar se arquivo foi enviado
+    if "file" not in request.files:
+        return jsonify({"error": "Nenhum arquivo enviado"}), 400
+
+    file = request.files["file"]
+
+    # Verificar se o arquivo tem nome
+    if file.filename == "":
+        return jsonify({"error": "Arquivo sem nome"}), 400
+
+    # Verificar se é um PDF
+    if not allowed_file(file.filename):
+        return jsonify({"error": "O arquivo deve ser um PDF"}), 400
+
+    # Ler o conteúdo do PDF
+    try:
+        pdf_content = file.read()
+        pdf_reader = PdfReader(io.BytesIO(pdf_content))
+
+        # Criar novo PDF com compressão
+        writer = PdfWriter()
+
+        # Adicionar páginas com compressão
+        for page in pdf_reader.pages:
+            writer.add_page(page)
+
+        # Remover metadados desnecessários para reduzir tamanho
+        writer.add_metadata({})
+
+        # Criar bytes do PDF comprimido
+        compressed_pdf = io.BytesIO()
+        writer.write(compressed_pdf)
+        compressed_pdf.seek(0)
+
+        return send_file(
+            compressed_pdf,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="comprimido.pdf",
+        )
+
+    except Exception as e:
+        return jsonify({"error": f"Erro ao comprimir PDF: {str(e)}"}), 500
