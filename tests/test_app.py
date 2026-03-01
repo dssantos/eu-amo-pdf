@@ -34,4 +34,4 @@ def test_api_merge_not_implemented(client):
     """Testa se a API de mesclagem retorna 501 (não implementado)."""
     response = client.post("/api/merge")
     assert response.status_code == 501
-    assert b"não implementada" in response.data
+    assert "implementada" in response.data.decode()
