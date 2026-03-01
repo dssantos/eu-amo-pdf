@@ -1,13 +1,16 @@
-from flask import Blueprint, render_template, request, jsonify, current_app, send_file
-from werkzeug.utils import secure_filename
-from pypdf import PdfReader, PdfWriter
-from docx import Document
-import io
-import os
+"""Rotas da aplicação Flask."""
+
+from flask import Blueprint, render_template, request, jsonify, send_file
+from typing import List
+
+from .services import MergeService, CompressService, ConversionService
+from .validators import FileValidator
+from .exceptions import PDFProcessingError
 
 main_bp = Blueprint("main", __name__)
 
 
+# Rotas de páginas HTML
 @main_bp.route("/")
 def index():
     """Página inicial com lista de ferramentas."""
@@ -32,52 +35,28 @@ def pdf_to_doc():
     return render_template("pdf-to-doc.html")
 
 
-def allowed_file(filename):
-    """Verifica se o arquivo tem uma extensão permitida."""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() == "pdf"
-
-
+# Rotas da API
 @main_bp.route("/api/merge", methods=["POST"])
 def api_merge():
-    """API para mesclar múltiplos PDFs."""
-    # Verificar se arquivos foram enviados
-    if "files" not in request.files:
-        return jsonify({"error": "Nenhum arquivo enviado"}), 400
+    """
+    API para mesclar múltiplos PDFs.
 
-    files = request.files.getlist("files")
+    Request:
+        files: Lista de arquivos PDF (mínimo 2)
 
-    # Verificar se há pelo menos 2 arquivos
-    if len(files) < 2:
-        return jsonify({"error": "É necessário enviar pelo menos 2 arquivos PDF"}), 400
-
-    # Verificar se todos os arquivos são PDFs
-    pdf_files = []
-    for file in files:
-        if file.filename == "":
-            return jsonify({"error": "Arquivo sem nome"}), 400
-
-        if not allowed_file(file.filename):
-            return jsonify({"error": "Todos os arquivos devem ser PDF"}), 400
-
-        # Ler o conteúdo do PDF
-        try:
-            pdf_content = file.read()
-            pdf_reader = PdfReader(io.BytesIO(pdf_content))
-            pdf_files.append(pdf_reader)
-        except Exception as e:
-            return jsonify({"error": f"Erro ao ler PDF {file.filename}: {str(e)}"}), 400
-
-    # Mesclar os PDFs
+    Returns:
+        PDF mesclado ou erro
+    """
     try:
-        merger = PdfWriter()
-        for pdf in pdf_files:
-            for page in pdf.pages:
-                merger.add_page(page)
+        # Validar entrada
+        if "files" not in request.files:
+            return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
-        # Criar bytes do PDF mesclado
-        merged_pdf = io.BytesIO()
-        merger.write(merged_pdf)
-        merged_pdf.seek(0)
+        files: List = request.files.getlist("files")
+        FileValidator.validate_pdf_files(files, min_count=2)
+
+        # Processar mesclagem
+        merged_pdf = MergeService.merge_pdfs(files)
 
         return send_file(
             merged_pdf,
@@ -86,46 +65,36 @@ def api_merge():
             download_name="mesclado.pdf",
         )
 
+    except PDFProcessingError as e:
+        return jsonify({"error": e.message}), e.status_code
     except Exception as e:
-        return jsonify({"error": f"Erro ao mesclar PDFs: {str(e)}"}), 500
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
 
 
 @main_bp.route("/api/compress", methods=["POST"])
 def api_compress():
-    """API para comprimir PDF."""
-    # Verificar se arquivo foi enviado
-    if "file" not in request.files:
-        return jsonify({"error": "Nenhum arquivo enviado"}), 400
+    """
+    API para comprimir PDF.
 
-    file = request.files["file"]
+    Request:
+        file: Arquivo PDF
+        level: Nível de compressão (low, medium, high)
 
-    # Verificar se o arquivo tem nome
-    if file.filename == "":
-        return jsonify({"error": "Arquivo sem nome"}), 400
-
-    # Verificar se é um PDF
-    if not allowed_file(file.filename):
-        return jsonify({"error": "O arquivo deve ser um PDF"}), 400
-
-    # Ler o conteúdo do PDF
+    Returns:
+        PDF comprimido ou erro
+    """
     try:
-        pdf_content = file.read()
-        pdf_reader = PdfReader(io.BytesIO(pdf_content))
+        # Validar entrada
+        if "file" not in request.files:
+            return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
-        # Criar novo PDF com compressão
-        writer = PdfWriter()
+        file = request.files["file"]
+        FileValidator.validate_pdf_file(file)
 
-        # Adicionar páginas com compressão
-        for page in pdf_reader.pages:
-            writer.add_page(page)
+        level = request.form.get("level", "medium")
 
-        # Remover metadados desnecessários para reduzir tamanho
-        writer.add_metadata({})
-
-        # Criar bytes do PDF comprimido
-        compressed_pdf = io.BytesIO()
-        writer.write(compressed_pdf)
-        compressed_pdf.seek(0)
+        # Processar compressão
+        compressed_pdf = CompressService.compress_pdf(file, level)
 
         return send_file(
             compressed_pdf,
@@ -134,59 +103,44 @@ def api_compress():
             download_name="comprimido.pdf",
         )
 
+    except PDFProcessingError as e:
+        return jsonify({"error": e.message}), e.status_code
     except Exception as e:
-        return jsonify({"error": f"Erro ao comprimir PDF: {str(e)}"}), 500
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
 
 
 @main_bp.route("/api/pdf-to-doc", methods=["POST"])
 def api_pdf_to_doc():
-    """API para converter PDF para DOCX."""
-    # Verificar se arquivo foi enviado
-    if "file" not in request.files:
-        return jsonify({"error": "Nenhum arquivo enviado"}), 400
+    """
+    API para converter PDF para DOCX.
 
-    file = request.files["file"]
+    Request:
+        file: Arquivo PDF
 
-    # Verificar se o arquivo tem nome
-    if file.filename == "":
-        return jsonify({"error": "Arquivo sem nome"}), 400
-
-    # Verificar se é um PDF
-    if not allowed_file(file.filename):
-        return jsonify({"error": "O arquivo deve ser um PDF"}), 400
-
-    # Ler o conteúdo do PDF e extrair texto
+    Returns:
+        Documento DOCX ou erro
+    """
     try:
-        pdf_content = file.read()
-        pdf_reader = PdfReader(io.BytesIO(pdf_content))
+        # Validar entrada
+        if "file" not in request.files:
+            return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
-        # Criar documento DOCX
-        doc = Document()
+        file = request.files["file"]
+        FileValidator.validate_pdf_file(file)
 
-        # Extrair texto de cada página
-        for page_num, page in enumerate(pdf_reader.pages):
-            try:
-                text = page.extract_text()
-                if text.strip():
-                    doc.add_paragraph(text)
-            except Exception as e:
-                # Se falhar extrair texto da página, continua
-                continue
+        # Processar conversão
+        docx = ConversionService.pdf_to_docx(file)
 
-        # Criar bytes do DOCX
-        docx_bytes = io.BytesIO()
-        doc.save(docx_bytes)
-        docx_bytes.seek(0)
-
-        # Nome do arquivo de saída
         output_filename = file.filename.replace(".pdf", ".docx")
 
         return send_file(
-            docx_bytes,
+            docx,
             mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             as_attachment=True,
             download_name=output_filename,
         )
 
+    except PDFProcessingError as e:
+        return jsonify({"error": e.message}), e.status_code
     except Exception as e:
-        return jsonify({"error": f"Erro ao converter PDF para DOCX: {str(e)}"}), 500
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
