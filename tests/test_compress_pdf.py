@@ -4,9 +4,8 @@ import os
 from eu_amo_pdf import create_app
 from pypdf import PdfWriter
 
-
 # Caminho para os PDFs de exemplo
-EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), '..', 'examples')
+EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "examples")
 
 
 @pytest.fixture
@@ -27,7 +26,7 @@ def get_example_pdf(filename):
     """Retorna um PDF de exemplo como bytes."""
     filepath = os.path.join(EXAMPLES_DIR, filename)
     if os.path.exists(filepath):
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return io.BytesIO(f.read())
     else:
         # Fallback: criar PDF simples em memória
@@ -44,10 +43,7 @@ def test_compress_business_report_success(client):
     """Testa compressão de um relatório de negócios real."""
     pdf_content = get_example_pdf("relatorio_negocios.pdf")
 
-    data = {
-        "file": (pdf_content, "relatorio_negocios.pdf"),
-        "level": "medium"
-    }
+    data = {"file": (pdf_content, "relatorio_negocios.pdf"), "level": "medium"}
 
     response = client.post(
         "/api/compress",
@@ -64,10 +60,7 @@ def test_compress_technical_document_success(client):
     """Testa compressão de um documento técnico real."""
     pdf_content = get_example_pdf("documento_tecnico.pdf")
 
-    data = {
-        "file": (pdf_content, "documento_tecnico.pdf"),
-        "level": "high"
-    }
+    data = {"file": (pdf_content, "documento_tecnico.pdf"), "level": "high"}
 
     response = client.post(
         "/api/compress",
@@ -83,10 +76,7 @@ def test_compress_legal_document_success(client):
     """Testa compressão de um documento jurídico real."""
     pdf_content = get_example_pdf("contrato_juridico.pdf")
 
-    data = {
-        "file": (pdf_content, "contrato_juridico.pdf"),
-        "level": "low"
-    }
+    data = {"file": (pdf_content, "contrato_juridico.pdf"), "level": "low"}
 
     response = client.post(
         "/api/compress",
@@ -126,10 +116,7 @@ def test_compress_returns_valid_pdf(client):
     """Testa que o arquivo retornado é um PDF válido."""
     pdf_content = get_example_pdf("artigo_cientifico.pdf")
 
-    data = {
-        "file": (pdf_content, "artigo_cientifico.pdf"),
-        "level": "medium"
-    }
+    data = {"file": (pdf_content, "artigo_cientifico.pdf"), "level": "medium"}
 
     response = client.post(
         "/api/compress",
@@ -139,5 +126,6 @@ def test_compress_returns_valid_pdf(client):
 
     assert response.status_code == 200
     from pypdf import PdfReader
+
     pdf_reader = PdfReader(io.BytesIO(response.data))
     assert len(pdf_reader.pages) >= 1  # Deve ter pelo menos 1 página

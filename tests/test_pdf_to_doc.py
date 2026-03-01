@@ -4,9 +4,8 @@ import os
 from eu_amo_pdf import create_app
 from pypdf import PdfWriter
 
-
 # Caminho para os PDFs de exemplo
-EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), '..', 'examples')
+EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "examples")
 
 
 @pytest.fixture
@@ -27,7 +26,7 @@ def get_example_pdf(filename):
     """Retorna um PDF de exemplo como bytes."""
     filepath = os.path.join(EXAMPLES_DIR, filename)
     if os.path.exists(filepath):
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return io.BytesIO(f.read())
     else:
         # Fallback: criar PDF simples em memória
@@ -52,7 +51,10 @@ def test_convert_business_report_to_docx(client):
     )
 
     assert response.status_code == 200
-    assert response.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert (
+        response.content_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 
 def test_convert_technical_document_to_docx(client):
@@ -68,7 +70,10 @@ def test_convert_technical_document_to_docx(client):
     )
 
     assert response.status_code == 200
-    assert response.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert (
+        response.content_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 
 def test_convert_marketing_brochure_to_docx(client):
@@ -84,7 +89,10 @@ def test_convert_marketing_brochure_to_docx(client):
     )
 
     assert response.status_code == 200
-    assert response.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert (
+        response.content_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 
 def test_convert_no_file_returns_error(client):
