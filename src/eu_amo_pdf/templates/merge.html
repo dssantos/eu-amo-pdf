@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Mesclar PDFs - Eu Amo PDF{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h1 class="text-center mb-4">Mesclar PDFs</h1>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="mergeForm">
+                    <div class="mb-3">
+                        <label for="pdfFiles" class="form-label">Selecione os arquivos PDF</label>
+                        <input type="file" class="form-control" id="pdfFiles" accept=".pdf" multiple required>
+                        <div class="form-text">Você pode selecionar múltiplos arquivos PDF</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h5>Arquivos selecionados:</h5>
+                        <ul id="fileList" class="list-group"></ul>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Mesclar PDFs</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="result" class="mt-4" style="display: none;">
+            <div class="alert alert-success">
+                <h5>✅ PDFs mesclados com sucesso!</h5>
+                <a id="downloadLink" href="#" class="btn btn-success">Baixar PDF</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pdfFiles').addEventListener('change', function(e) {
+    const fileList = document.getElementById('fileList');
+    fileList.innerHTML = '';
+
+    for (const file of e.target.files) {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = file.name;
+        fileList.appendChild(li);
+    }
+});
+
+document.getElementById('mergeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const files = document.getElementById('pdfFiles').files;
+    if (files.length < 2) {
+        alert('Selecione pelo menos 2 arquivos PDF');
+        return;
+    }
+
+    const formData = new FormData();
+    for (const file of files) {
+        formData.append('files', file);
+    }
+
+    try {
+        const response = await fetch('/api/merge', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'merged.pdf';
+            a.click();
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('downloadLink').onclick = function() {
+                a.click();
+            };
+        } else {
+            alert('Erro ao mesclar PDFs');
+        }
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
+});
+</script>
+{% endblock %}
