@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}PDF para DOC - Eu Amo PDF{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h1 class="text-center mb-4">Converter PDF para DOCX</h1>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="convertForm">
+                    <div class="mb-3">
+                        <label for="pdfFile" class="form-label">Selecione o arquivo PDF</label>
+                        <input type="file" class="form-control" id="pdfFile" accept=".pdf" required>
+                        <div class="form-text">O PDF será convertido para um documento DOCX editável</div>
+                    </div>
+
+                    <div id="fileInfo" class="alert alert-info" style="display: none;">
+                        <strong>Arquivo selecionado:</strong> <span id="fileName"></span><br>
+                        <strong>Tamanho:</strong> <span id="fileSize"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Converter para DOCX</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3">
+            <strong>⚠️ Nota:</strong> A conversão extrai o texto do PDF. Imagens, formatação complexa e tabelas podem não ser preservadas.
+        </div>
+
+        <div id="result" class="mt-4" style="display: none;">
+            <div class="alert alert-success">
+                <h5>✅ PDF convertido com sucesso!</h5>
+                <a id="downloadLink" href="#" class="btn btn-success">Baixar DOCX</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pdfFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileInfo').style.display = 'block';
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatBytes(file.size);
+    }
+});
+
+document.getElementById('convertForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const file = document.getElementById('pdfFile').files[0];
+    if (!file) {
+        alert('Selecione um arquivo PDF');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/pdf-to-doc', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name.replace('.pdf', '.docx');
+            a.click();
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('downloadLink').onclick = function() {
+                a.click();
+            };
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + error.error);
+        }
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
+});
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+</script>
+{% endblock %}

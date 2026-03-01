@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, current_app, send_file
 from werkzeug.utils import secure_filename
 from pypdf import PdfReader, PdfWriter
+from docx import Document
 import io
 import os
 
@@ -23,6 +24,12 @@ def merge():
 def compress():
     """Página para comprimir PDFs."""
     return render_template("compress.html")
+
+
+@main_bp.route("/pdf-to-doc")
+def pdf_to_doc():
+    """Página para converter PDF para DOC."""
+    return render_template("pdf-to-doc.html")
 
 
 def allowed_file(filename):
@@ -129,3 +136,57 @@ def api_compress():
 
     except Exception as e:
         return jsonify({"error": f"Erro ao comprimir PDF: {str(e)}"}), 500
+
+
+@main_bp.route("/api/pdf-to-doc", methods=["POST"])
+def api_pdf_to_doc():
+    """API para converter PDF para DOCX."""
+    # Verificar se arquivo foi enviado
+    if "file" not in request.files:
+        return jsonify({"error": "Nenhum arquivo enviado"}), 400
+
+    file = request.files["file"]
+
+    # Verificar se o arquivo tem nome
+    if file.filename == "":
+        return jsonify({"error": "Arquivo sem nome"}), 400
+
+    # Verificar se é um PDF
+    if not allowed_file(file.filename):
+        return jsonify({"error": "O arquivo deve ser um PDF"}), 400
+
+    # Ler o conteúdo do PDF e extrair texto
+    try:
+        pdf_content = file.read()
+        pdf_reader = PdfReader(io.BytesIO(pdf_content))
+
+        # Criar documento DOCX
+        doc = Document()
+
+        # Extrair texto de cada página
+        for page_num, page in enumerate(pdf_reader.pages):
+            try:
+                text = page.extract_text()
+                if text.strip():
+                    doc.add_paragraph(text)
+            except Exception as e:
+                # Se falhar extrair texto da página, continua
+                continue
+
+        # Criar bytes do DOCX
+        docx_bytes = io.BytesIO()
+        doc.save(docx_bytes)
+        docx_bytes.seek(0)
+
+        # Nome do arquivo de saída
+        output_filename = file.filename.replace(".pdf", ".docx")
+
+        return send_file(
+            docx_bytes,
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            as_attachment=True,
+            download_name=output_filename,
+        )
+
+    except Exception as e:
+        return jsonify({"error": f"Erro ao converter PDF para DOCX: {str(e)}"}), 500
