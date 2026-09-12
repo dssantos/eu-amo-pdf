@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy project files
 COPY pyproject.toml ./
+COPY .env.example ./
 COPY src/ ./src/
 
 # Install dependencies
